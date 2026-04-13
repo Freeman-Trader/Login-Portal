@@ -21,6 +21,10 @@ app.config['SECRET_KEY'] = os.getenv("SECRET_KEY")
 hostname = socket.gethostname()
 host_ip = socket.gethostbyname(hostname)
 
+@app.context_processor
+def inject_host_info():
+    return dict(host_name=hostname, host_ip=host_ip)
+
 # Set logging to use UTC
 logging.Formatter.converter = time.gmtime 
 

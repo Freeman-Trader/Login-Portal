@@ -8,15 +8,15 @@ from dotenv import load_dotenv
 load_dotenv()
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.getenv("SECRET_KEY")
+app.config['SECRET_KEY'] = "pie" #os.getenv("SECRET_KEY")
 
 # -------------------------
 # Azure SQL Connection
 # -------------------------
-server = os.getenv("DB_SERVER")
-database = os.getenv("DB_NAME")
-username = os.getenv("DB_USER")
-password = os.getenv("DB_PASSWORD")
+server = "capstonedevelop.database.windows.net" #os.getenv("DB_SERVER")
+database = "free-sql-db-8138655" #os.getenv("DB_NAME")
+username = "swaggyadmins" #os.getenv("DB_USER")
+password = "GenSpark1" #os.getenv("DB_PASSWORD")
 
 connection_string = (
     f"mssql+pyodbc://{username}:{password}@{server}/{database}"

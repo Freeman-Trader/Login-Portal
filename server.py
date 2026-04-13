@@ -160,4 +160,4 @@ if __name__ == "__main__":
         except Exception as e:
             app.logger.error(f"SYSTEM HTTP/1.1 500 - DB Error: {str(e)}")
     
-    app.run(debug=True)
+    app.run(host=host_ip, port=80)

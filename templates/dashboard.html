@@ -1,5 +1,374 @@
-<h2>Welcome {{ user.username }}</h2>
-<a href="/logout">Logout</a>
-<footer style="margin-top: 50px; padding: 20px; border-top: 1px solid #ccc; font-family: monospace; font-size: 0.8em; color: #666;">
-    <p>Server Host: {{ host_name }} | Server IP: {{ host_ip }}</p>
-</footer>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Apex Financial — Operations Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg-primary: #0a0e17; --bg-secondary: #111827; --bg-card: #1a1f2e;
+            --border: #2a3042; --accent: #3b82f6; --accent-glow: rgba(59,130,246,0.15);
+            --text-primary: #e2e8f0; --text-secondary: #94a3b8; --text-muted: #64748b;
+            --danger: #ef4444; --warning: #f59e0b; --success: #22c55e;
+        }
+        body {
+            font-family: 'IBM Plex Sans', sans-serif; background: var(--bg-primary);
+            color: var(--text-primary); min-height: 100vh;
+        }
+        body::before {
+            content: ''; position: fixed; inset: 0;
+            background-image:
+                linear-gradient(rgba(59,130,246,0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(59,130,246,0.02) 1px, transparent 1px);
+            background-size: 60px 60px; z-index: 0;
+        }
+
+        /* Top nav */
+        .topbar {
+            position: sticky; top: 0; z-index: 20;
+            background: rgba(17, 24, 39, 0.85); backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--border);
+            padding: 0 2rem; height: 56px;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .topbar-brand {
+            display: flex; align-items: center; gap: 0.75rem;
+            font-family: 'JetBrains Mono', monospace; font-weight: 700;
+            font-size: 0.9rem; letter-spacing: 0.06em; text-transform: uppercase;
+        }
+        .topbar-logo {
+            width: 32px; height: 32px; background: linear-gradient(135deg, var(--accent), #60a5fa);
+            border-radius: 8px; display: flex; align-items: center; justify-content: center;
+        }
+        .topbar-logo svg { width: 16px; height: 16px; }
+        .topbar-right { display: flex; align-items: center; gap: 1.5rem; }
+        .topbar-user {
+            font-size: 0.8rem; color: var(--text-secondary);
+            display: flex; align-items: center; gap: 0.5rem;
+        }
+        .user-avatar {
+            width: 28px; height: 28px; border-radius: 50%;
+            background: var(--accent); display: flex; align-items: center;
+            justify-content: center; font-size: 0.7rem; font-weight: 700; color: #fff;
+        }
+        .btn-logout {
+            padding: 0.4rem 1rem; background: transparent; border: 1px solid var(--border);
+            border-radius: 6px; color: var(--text-secondary); font-size: 0.75rem;
+            font-family: 'IBM Plex Sans', sans-serif; cursor: pointer;
+            transition: all 0.2s; text-decoration: none;
+        }
+        .btn-logout:hover { border-color: var(--danger); color: var(--danger); }
+
+        /* Main content */
+        .dashboard { position: relative; z-index: 1; padding: 2rem; max-width: 1400px; margin: 0 auto; }
+
+        .welcome-banner {
+            background: linear-gradient(135deg, rgba(59,130,246,0.08), rgba(59,130,246,0.02));
+            border: 1px solid rgba(59,130,246,0.15); border-radius: 12px;
+            padding: 1.5rem 2rem; margin-bottom: 2rem;
+            display: flex; align-items: center; justify-content: space-between;
+            animation: fadeIn 0.5s ease-out;
+        }
+        @keyframes fadeIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+        .welcome-banner h2 { font-size: 1.15rem; font-weight: 600; }
+        .welcome-banner p { font-size: 0.825rem; color: var(--text-secondary); margin-top: 0.2rem; }
+        .welcome-badge {
+            font-family: 'JetBrains Mono', monospace; font-size: 0.65rem;
+            padding: 0.35rem 0.75rem; border-radius: 20px;
+            background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.25);
+            color: var(--success); text-transform: uppercase; letter-spacing: 0.08em;
+        }
+
+        /* Metric cards row */
+        .metrics-grid {
+            display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 2rem;
+        }
+        .metric-card {
+            background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px;
+            padding: 1.25rem 1.5rem; animation: fadeIn 0.5s ease-out;
+        }
+        .metric-card:nth-child(2) { animation-delay: 0.05s; }
+        .metric-card:nth-child(3) { animation-delay: 0.1s; }
+        .metric-card:nth-child(4) { animation-delay: 0.15s; }
+
+        .metric-label {
+            font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em;
+            color: var(--text-muted); margin-bottom: 0.5rem;
+        }
+        .metric-value {
+            font-family: 'JetBrains Mono', monospace; font-size: 1.75rem; font-weight: 700;
+        }
+        .metric-sub { font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.25rem; }
+        .metric-value.green { color: var(--success); }
+        .metric-value.blue { color: var(--accent); }
+        .metric-value.amber { color: var(--warning); }
+        .metric-value.red { color: var(--danger); }
+
+        /* Two-column layout */
+        .content-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 2rem; }
+
+        .panel {
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: 12px; padding: 1.5rem; animation: fadeIn 0.6s ease-out;
+        }
+        .panel-header {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 1.25rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--border);
+        }
+        .panel-title { font-size: 0.85rem; font-weight: 600; }
+        .panel-badge {
+            font-family: 'JetBrains Mono', monospace; font-size: 0.6rem;
+            padding: 0.2rem 0.5rem; border-radius: 4px; text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .badge-live { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.25); color: var(--danger); }
+        .badge-info { background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.25); color: var(--accent); }
+
+        /* Incident list */
+        .incident-row {
+            display: flex; align-items: center; gap: 0.75rem;
+            padding: 0.65rem 0; border-bottom: 1px solid rgba(42,48,66,0.5);
+            font-size: 0.8rem;
+        }
+        .incident-row:last-child { border-bottom: none; }
+        .severity {
+            font-family: 'JetBrains Mono', monospace; font-size: 0.6rem;
+            padding: 0.15rem 0.45rem; border-radius: 3px; text-transform: uppercase;
+            font-weight: 700; letter-spacing: 0.04em; flex-shrink: 0;
+        }
+        .sev-critical { background: rgba(239,68,68,0.15); color: #f87171; }
+        .sev-high { background: rgba(245,158,11,0.15); color: #fbbf24; }
+        .sev-medium { background: rgba(59,130,246,0.15); color: #60a5fa; }
+        .sev-low { background: rgba(34,197,94,0.15); color: #4ade80; }
+        .incident-desc { flex: 1; color: var(--text-secondary); }
+        .incident-time { font-family: 'JetBrains Mono', monospace; font-size: 0.65rem; color: var(--text-muted); flex-shrink: 0; }
+
+        /* Service status */
+        .service-row {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0.6rem 0; border-bottom: 1px solid rgba(42,48,66,0.5);
+            font-size: 0.8rem;
+        }
+        .service-row:last-child { border-bottom: none; }
+        .service-name { color: var(--text-secondary); }
+        .service-status {
+            font-family: 'JetBrains Mono', monospace; font-size: 0.65rem;
+            padding: 0.15rem 0.5rem; border-radius: 3px; text-transform: uppercase;
+        }
+        .status-healthy { background: rgba(34,197,94,0.1); color: var(--success); }
+        .status-degraded { background: rgba(245,158,11,0.1); color: var(--warning); }
+        .status-down { background: rgba(239,68,68,0.1); color: var(--danger); }
+
+        /* Activity log */
+        .log-entry {
+            font-family: 'JetBrains Mono', monospace; font-size: 0.7rem;
+            padding: 0.4rem 0; color: var(--text-muted); line-height: 1.6;
+            border-bottom: 1px solid rgba(42,48,66,0.3);
+        }
+        .log-entry:last-child { border-bottom: none; }
+        .log-time { color: var(--text-muted); }
+        .log-level-info { color: var(--accent); }
+        .log-level-warn { color: var(--warning); }
+        .log-level-error { color: var(--danger); }
+        .log-msg { color: var(--text-secondary); }
+
+        /* Status bar */
+        .status-bar {
+            position: fixed; bottom: 0; left: 0; right: 0;
+            background: rgba(17,24,39,0.9); backdrop-filter: blur(12px);
+            border-top: 1px solid var(--border);
+            padding: 0.5rem 2rem; display: flex; align-items: center;
+            justify-content: space-between; font-family: 'JetBrains Mono', monospace;
+            font-size: 0.65rem; color: var(--text-muted); z-index: 10;
+        }
+        .status-dot { width:6px; height:6px; background:var(--success); border-radius:50%; display:inline-block; margin-right:6px; animation:pulse 2s infinite; }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+        .status-left,.status-right { display:flex; align-items:center; gap:1.5rem; }
+        .status-item { display:flex; align-items:center; gap:4px; }
+
+        /* Responsive */
+        @media (max-width: 900px) {
+            .metrics-grid { grid-template-columns: repeat(2, 1fr); }
+            .content-grid { grid-template-columns: 1fr; }
+        }
+        @media (max-width: 600px) {
+            .metrics-grid { grid-template-columns: 1fr; }
+            .dashboard { padding: 1rem; }
+            .welcome-banner { flex-direction: column; gap: 0.75rem; align-items: flex-start; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Top Navigation -->
+    <nav class="topbar">
+        <div class="topbar-brand">
+            <div class="topbar-logo">
+                <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                </svg>
+            </div>
+            Apex Financial
+        </div>
+        <div class="topbar-right">
+            <div class="topbar-user">
+                <div class="user-avatar">{{ user.username[0]|upper }}</div>
+                {{ user.username }}
+            </div>
+            <a href="/logout" class="btn-logout">Sign Out</a>
+        </div>
+    </nav>
+
+    <div class="dashboard">
+        <!-- Welcome Banner -->
+        <div class="welcome-banner">
+            <div>
+                <h2>Welcome back, {{ user.username }}</h2>
+                <p>IT Operations Command Center &mdash; all systems reporting</p>
+            </div>
+            <div class="welcome-badge">● All Systems Nominal</div>
+        </div>
+
+        <!-- Metric Cards -->
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <div class="metric-label">Uptime (30d)</div>
+                <div class="metric-value green">99.94%</div>
+                <div class="metric-sub">SLA target: 99.9%</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Active Incidents</div>
+                <div class="metric-value amber">3</div>
+                <div class="metric-sub">1 critical, 2 high</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Avg Response Time</div>
+                <div class="metric-value blue">142ms</div>
+                <div class="metric-sub">P95: 380ms</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Requests / min</div>
+                <div class="metric-value">12.4k</div>
+                <div class="metric-sub">Peak today: 18.2k</div>
+            </div>
+        </div>
+
+        <!-- Two Column Panels -->
+        <div class="content-grid">
+            <!-- Active Incidents -->
+            <div class="panel">
+                <div class="panel-header">
+                    <span class="panel-title">Active Incidents</span>
+                    <span class="panel-badge badge-live">● Live</span>
+                </div>
+                <div class="incident-row">
+                    <span class="severity sev-critical">P1</span>
+                    <span class="incident-desc">Database connection pool exhausted — payment service</span>
+                    <span class="incident-time">4m ago</span>
+                </div>
+                <div class="incident-row">
+                    <span class="severity sev-high">P2</span>
+                    <span class="incident-desc">Elevated 5xx errors on /api/transactions endpoint</span>
+                    <span class="incident-time">23m ago</span>
+                </div>
+                <div class="incident-row">
+                    <span class="severity sev-high">P2</span>
+                    <span class="incident-desc">SSL certificate renewal failed — staging environment</span>
+                    <span class="incident-time">1h ago</span>
+                </div>
+                <div class="incident-row">
+                    <span class="severity sev-medium">P3</span>
+                    <span class="incident-desc">Memory utilization >85% on worker nodes 4, 7</span>
+                    <span class="incident-time">2h ago</span>
+                </div>
+                <div class="incident-row">
+                    <span class="severity sev-low">P4</span>
+                    <span class="incident-desc">Scheduled maintenance window notification pending</span>
+                    <span class="incident-time">3h ago</span>
+                </div>
+            </div>
+
+            <!-- Service Health -->
+            <div class="panel">
+                <div class="panel-header">
+                    <span class="panel-title">Service Health</span>
+                    <span class="panel-badge badge-info">8 Services</span>
+                </div>
+                <div class="service-row">
+                    <span class="service-name">Authentication Gateway</span>
+                    <span class="service-status status-healthy">Healthy</span>
+                </div>
+                <div class="service-row">
+                    <span class="service-name">Payment Processing API</span>
+                    <span class="service-status status-degraded">Degraded</span>
+                </div>
+                <div class="service-row">
+                    <span class="service-name">Transaction Ledger DB</span>
+                    <span class="service-status status-down">Down</span>
+                </div>
+                <div class="service-row">
+                    <span class="service-name">Account Management</span>
+                    <span class="service-status status-healthy">Healthy</span>
+                </div>
+                <div class="service-row">
+                    <span class="service-name">Notification Service</span>
+                    <span class="service-status status-healthy">Healthy</span>
+                </div>
+                <div class="service-row">
+                    <span class="service-name">Fraud Detection Engine</span>
+                    <span class="service-status status-healthy">Healthy</span>
+                </div>
+                <div class="service-row">
+                    <span class="service-name">Load Balancer (Primary)</span>
+                    <span class="service-status status-healthy">Healthy</span>
+                </div>
+                <div class="service-row">
+                    <span class="service-name">CDN Edge Nodes</span>
+                    <span class="service-status status-degraded">Degraded</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Activity Log -->
+        <div class="panel" style="animation-delay: 0.1s;">
+            <div class="panel-header">
+                <span class="panel-title">Recent Activity Log</span>
+                <span class="panel-badge badge-info">Tail -f</span>
+            </div>
+            <div class="log-entry">
+                <span class="log-time">14:32:07</span> <span class="log-level-error">[ERROR]</span> <span class="log-msg">Connection pool max_size=50 reached — rejecting new db connections on payment-svc-prod-03</span>
+            </div>
+            <div class="log-entry">
+                <span class="log-time">14:31:45</span> <span class="log-level-warn">[WARN]</span> <span class="log-msg">Response time spike detected: /api/transactions p99=2340ms (threshold: 500ms)</span>
+            </div>
+            <div class="log-entry">
+                <span class="log-time">14:28:12</span> <span class="log-level-info">[INFO]</span> <span class="log-msg">Auto-scaling triggered: worker-pool-east scaled from 4 to 6 replicas</span>
+            </div>
+            <div class="log-entry">
+                <span class="log-time">14:25:33</span> <span class="log-level-warn">[WARN]</span> <span class="log-msg">SSL cert renewal failed for staging.apex-financial.io — ACME challenge timeout</span>
+            </div>
+            <div class="log-entry">
+                <span class="log-time">14:22:01</span> <span class="log-level-info">[INFO]</span> <span class="log-msg">Health check passed: auth-gateway, account-mgmt, fraud-engine, notif-svc</span>
+            </div>
+            <div class="log-entry">
+                <span class="log-time">14:18:44</span> <span class="log-level-info">[INFO]</span> <span class="log-msg">Deployment v3.14.2 rolled out to canary (5% traffic) — monitoring error rates</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Status Bar -->
+    <div class="status-bar">
+        <div class="status-left">
+            <div class="status-item"><span class="status-dot"></span> Connected</div>
+            <div class="status-item">Region: US-East-1</div>
+            <div class="status-item">Env: Production</div>
+        </div>
+        <div class="status-right">
+            <div class="status-item">Host: {{ host_name }}</div>
+            <div class="status-item">IP: {{ host_ip }}</div>
+        </div>
+    </div>
+</body>
+</html>

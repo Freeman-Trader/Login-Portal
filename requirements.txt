@@ -1,5 +1,7 @@
-Flask
-Flask-SQLAlchemy
-Flask-Login
+flask
+flask-sqlalchemy
+flask-login
 python-dotenv
 pyodbc
+werkzeug
+gunicorn

@@ -32,12 +32,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Step 4: Copy application code
 COPY . .
 
-# Step 5: Prepare logging directory
-RUN touch access.log && chmod 666 access.log
-
-# Step 6: Expose port (Internal container port)
+# Step 5: Expose port (Internal container port)
 EXPOSE 80
 
-# Step 7: Run with Gunicorn (Production Grade)
+# Step 6: Run with Gunicorn (Production Grade)
 # We bind to 0.0.0.0 so it's reachable outside the container
-CMD ["gunicorn", "--bind", "0.0.0.0:80", "--workers", "4", "server:app"]
+CMD ["gunicorn", "--bind", "0.0.0.0:80", "--workers", "4", \
+     "--access-logfile", "-", \
+     "--error-logfile", "-", \
+     "server:app"]

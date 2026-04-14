@@ -10,6 +10,7 @@ from flask_login import LoginManager, UserMixin, login_user, login_required, log
 from werkzeug.security import generate_password_hash, check_password_hash
 from dotenv import load_dotenv
 
+# Load environment variables
 load_dotenv()
 
 app = Flask(__name__)
@@ -28,26 +29,41 @@ def inject_host_info():
 # Set logging to use UTC
 logging.Formatter.converter = time.gmtime 
 
-class ApacheFormatter(logging.Formatter):
-    """Custom formatter to mimic Apache Access Log format in UTC"""
+# -------------------------
+# Custom Apache Formatters
+# -------------------------
+class ApacheAccessFormatter(logging.Formatter):
+    """Mimics Apache Access Log: 127.0.0.1 - user [10/Oct/2000:13:55:36 +0000] \"...\""""
     def format(self, record):
-        # Apache Date Format: [10/Oct/2000:13:55:36 +0000]
         timestamp = datetime.fromtimestamp(record.created).strftime('%d/%b/%Y:%H:%M:%S +0000')
-        
-        # Get client IP and user info if available
         client_ip = request.remote_addr if request else "-"
-        user_id = current_user.username if current_user and current_user.is_authenticated else "-"
-        
-        # Build the Apache-style string
-        # Added [Host: {hostname}] at the end for your specific machine tracking
+        user_id = current_user.username if (current_user and current_user.is_authenticated) else "-"
         return f'{client_ip} - {user_id} [{timestamp}] "{record.getMessage()}" {hostname} {host_ip}'
+
+class ApacheErrorFormatter(logging.Formatter):
+    """Mimics Apache Error Log: [Wed Oct 11 14:32:52 2000] [error] [client 127.0.0.1] Message"""
+    def format(self, record):
+        timestamp = datetime.fromtimestamp(record.created).strftime('%a %b %d %H:%M:%S %Y')
+        client_ip = request.remote_addr if request else "system"
+        level = record.levelname.lower()
+        return f'[{timestamp}] [{level}] [client {client_ip}] {record.getMessage()} (Host: {hostname} {host_ip})'
 
 # -------------------------
 # Logging Setup
 # -------------------------
-file_handler = RotatingFileHandler('access.log', maxBytes=1000000, backupCount=5)
-file_handler.setFormatter(ApacheFormatter())
-app.logger.addHandler(file_handler)
+# 1. Access Log (INFO and above)
+access_handler = RotatingFileHandler('access.log', maxBytes=1000000, backupCount=5)
+access_handler.setLevel(logging.INFO)
+access_handler.setFormatter(ApacheAccessFormatter())
+
+# 2. Error Log (ERROR and above)
+error_handler = RotatingFileHandler('error.log', maxBytes=1000000, backupCount=5)
+error_handler.setLevel(logging.ERROR)
+error_handler.setFormatter(ApacheErrorFormatter())
+
+# Configure Flask app logger
+app.logger.addHandler(access_handler)
+app.logger.addHandler(error_handler)
 app.logger.setLevel(logging.INFO)
 
 app.logger.info("SYSTEM_STARTUP - Server initialized")
@@ -60,6 +76,7 @@ database = os.getenv("DB_NAME")
 username = os.getenv("DB_USER")
 password = os.getenv("DB_PASSWORD")
 
+# Ensure you have the 'ODBC Driver 18 for SQL Server' installed in your environment
 connection_string = (
     f"mssql+pyodbc://{username}:{password}@{server}/{database}"
     "?driver=ODBC+Driver+18+for+SQL+Server"
@@ -101,7 +118,7 @@ def home():
 def register():
     if request.method == "POST":
         uname = request.form.get("username")
-        password = request.form.get("password")
+        pw = request.form.get("password")
 
         if User.query.filter_by(username=uname).first():
             app.logger.warning(f"POST /register HTTP/1.1 400 - User {uname} exists")
@@ -109,15 +126,17 @@ def register():
             return redirect(url_for("register"))
 
         try:
-            user = User(username=uname, password=generate_password_hash(password))
+            user = User(username=uname, password=generate_password_hash(pw))
             db.session.add(user)
             db.session.commit()
             app.logger.info(f"POST /register HTTP/1.1 201 - Created {uname}")
             flash("Account created")
             return redirect(url_for("login"))
         except Exception as e:
-            app.logger.error(f"POST /register HTTP/1.1 500 - Error: {str(e)}")
+            # Errors will be logged to BOTH access.log and error.log
+            app.logger.error(f"POST /register HTTP/1.1 500 - Registration failed: {str(e)}")
             db.session.rollback()
+            flash("An error occurred during registration.")
 
     return render_template("register.html")
 
@@ -125,10 +144,10 @@ def register():
 def login():
     if request.method == "POST":
         uname = request.form.get("username")
-        password = request.form.get("password")
+        pw = request.form.get("password")
         user = User.query.filter_by(username=uname).first()
 
-        if not user or not check_password_hash(user.password, password):
+        if not user or not check_password_hash(user.password, pw):
             app.logger.warning(f"POST /login HTTP/1.1 401 - Failed login: {uname}")
             flash("Invalid credentials")
             return redirect(url_for("login"))
@@ -152,12 +171,17 @@ def logout():
 def dashboard():
     return render_template("dashboard.html", user=current_user)
 
+# -------------------------
+# Execution
+# -------------------------
 if __name__ == "__main__":
     with app.app_context():
         try:
             db.create_all()
-            app.logger.info("GET /db-init HTTP/1.1 200 - Tables verified")
+            app.logger.info("SYSTEM - Database tables verified")
         except Exception as e:
-            app.logger.error(f"SYSTEM HTTP/1.1 500 - DB Error: {str(e)}")
+            app.logger.error(f"SYSTEM - Startup DB Error: {str(e)}")
     
-    app.run(host=host_ip, port=80)
+    # Binding to 0.0.0.0 is often preferred for Docker/Cloud environments
+    # Change back to host_ip if you need a specific local bind
+    app.run(host='0.0.0.0', port=80)

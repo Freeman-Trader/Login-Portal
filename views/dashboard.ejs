@@ -214,8 +214,8 @@
         </div>
         <div class="topbar-right">
             <div class="topbar-user">
-                <div class="user-avatar">{{ user.username[0]|upper }}</div>
-                {{ user.username }}
+                <div class="user-avatar"><%= user.username.charAt(0).toUpperCase() %></div>
+                <%= user.username %>
             </div>
             <a href="/logout" class="btn-logout">Sign Out</a>
         </div>
@@ -225,7 +225,7 @@
         <!-- Welcome Banner -->
         <div class="welcome-banner">
             <div>
-                <h2>Welcome back, {{ user.username }}</h2>
+                <h2>Welcome back, <%= user.username %></h2>
                 <p>IT Operations Command Center &mdash; all systems reporting</p>
             </div>
             <div class="welcome-badge">● All Systems Nominal</div>
@@ -366,8 +366,8 @@
             <div class="status-item">Env: Production</div>
         </div>
         <div class="status-right">
-            <div class="status-item">Host: {{ host_name }}</div>
-            <div class="status-item">IP: {{ host_ip }}</div>
+            <div class="status-item">Host: <%= host_name %></div>
+            <div class="status-item">IP: <%= host_ip %></div>
         </div>
     </div>
 </body>

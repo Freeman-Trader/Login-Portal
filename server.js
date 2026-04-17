@@ -79,11 +79,6 @@ app.logger = {
         const user_id = (req && req.user) ? req.user.username : "-";
         accessLogger.info(`${client_ip} - ${user_id} [${getUtcAccessTimestamp()}] "${msg}" ${hostname} ${host_ip}`);
     },
-    warning: (msg, req = null) => {
-        const client_ip = req ? req.ip.replace(/^.*:/, '') : "-";
-        const user_id = (req && req.user) ? req.user.username : "-";
-        accessLogger.info(`${client_ip} - ${user_id} [${getUtcAccessTimestamp()}] "WARNING: ${msg}" ${hostname} ${host_ip}`);
-    },
     error: (msg, req = null) => {
         const client_ip = req ? req.ip.replace(/^.*:/, '') : "system";
         errorLogger.error(`[${getUtcErrorTimestamp()}] [error] [client ${client_ip}] ${msg} (Host: ${hostname} ${host_ip})`);
@@ -197,7 +192,7 @@ app.route('/register')
         try {
             const existingUser = await User.findOne({ where: { username } });
             if (existingUser) {
-                app.logger.warning(`POST /register HTTP/1.1 400 - User ${username} exists`, req);
+                app.logger.info(`POST /register HTTP/1.1 400 - User ${username} exists`, req);
                 req.flash('error', 'User already exists');
                 return res.redirect('/register');
             }
@@ -222,7 +217,7 @@ app.route('/login')
         passport.authenticate('local', (err, user, info) => {
             if (err) return next(err);
             if (!user) {
-                app.logger.warning(`POST /login HTTP/1.1 401 - Failed login: ${username}`, req);
+                app.logger.info(`POST /login HTTP/1.1 401 - Failed login: ${username}`, req);
                 req.flash('error', info.message || 'Invalid credentials');
                 return res.redirect('/login');
             }
